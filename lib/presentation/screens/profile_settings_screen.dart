@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prueba_tecnica/presentation/screens/auth_screen.dart';
+import 'package:prueba_tecnica/services/api_service.dart'; // Importa AuthScreen
 
 class ProfileSettingsScreen extends StatefulWidget {
   @override
@@ -8,8 +8,9 @@ class ProfileSettingsScreen extends StatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
-  final _auth = FirebaseAuth.instance;
+  final _apiService = ApiService();
   late Brightness brightness;
+
   @override
   Widget build(BuildContext context) {
     brightness = Theme.of(context).brightness;
@@ -21,11 +22,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         child: Container(
           decoration: BoxDecoration(
             color: brightness == Brightness.light
-                      ? Colors.white
-                      : Theme.of(context).colorScheme.surfaceContainerLow,
-                  border: brightness == Brightness.light
-                      ? Border.all(color: Colors.black26)
-                      : Border.all(color: Colors.white30), 
+                ? Colors.white
+                : Theme.of(context).colorScheme.surfaceContainerLow,
+            border: brightness == Brightness.light
+                ? Border.all(color: Colors.black26)
+                : Border.all(color: Colors.white30),
             borderRadius: BorderRadius.circular(10.0),
           ),
           margin: const EdgeInsets.all(16.0),
@@ -34,10 +35,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             children: [
               ListTile(
                 title: const Text('Correo electrónico'),
-                subtitle: Text('${_auth.currentUser!.email}'),
+                subtitle: Text('${_apiService.sessionCookie}'), // Mostrar la cookie de sesión
+                // Puedes mostrar el correo electrónico del usuario aquí si lo tienes disponible
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 4.0),
                 child: Divider(
                   height: 0.0,
                   thickness: 1.0,
@@ -52,7 +54,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 },
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 4.0),
                 child: Divider(
                   height: 0.0,
                   thickness: 1.0,
@@ -69,7 +71,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 },
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 4.0),
                 child: Divider(
                   height: 0.0,
                   thickness: 1.0,
@@ -78,7 +80,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ListTile(
                 title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
                 onTap: () async {
-                  await _auth.signOut();
+                  await _apiService.logout();
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
@@ -101,7 +103,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Editar contraseña'),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(

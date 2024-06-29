@@ -1,15 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Task {
-  final String id;
+  final int? id;
   final String title;
   final String? description;
-  final DateTime deadline;
-  final int priority; // 0: Baja, 1: Media, 2: Alta
+  late final DateTime deadline;
+  final int priority;
   final bool isCompleted;
 
   Task({
-    required this.id,
+    this.id,
     required this.title,
     this.description,
     required this.deadline,
@@ -17,25 +15,28 @@ class Task {
     required this.isCompleted,
   });
 
-  factory Task.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
-    final data = snapshot.data()!;
+  factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
-      id: snapshot.id,
-      title: data['title'],
-      description: data['description'],
-      deadline: (data['deadline'] as Timestamp).toDate(),
-      priority: data['priority'],
-      isCompleted: data['isCompleted'],
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      deadline: DateTime.parse(json['deadline']),
+      priority: json['priority'],
+      isCompleted: json['is_completed'],
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'title': title,
       'description': description,
-      'deadline': Timestamp.fromDate(deadline),
+      // eliminar la T y lo que sigue después de la T
+      'deadline': deadline.toIso8601String().split('T')[0],
       'priority': priority,
-      'isCompleted': isCompleted,
+      'is_completed': isCompleted,
     };
   }
+
+   
 }

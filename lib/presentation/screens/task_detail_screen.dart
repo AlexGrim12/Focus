@@ -1,36 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:prueba_tecnica/models/task.dart';
+import 'package:prueba_tecnica/presentation/router/app_routes.dart';
+import 'package:prueba_tecnica/services/api_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
 
-  TaskDetailScreen({required this.task});
+  const TaskDetailScreen({Key? key, required this.task}) : super(key: key);
 
   @override
   _TaskDetailScreenState createState() => _TaskDetailScreenState();
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
-
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleController;
-  late TextEditingController _descriptionController;
-  late DateTime _deadline;
-  late int _priority;
-  late bool _isCompleted;
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  late DateTime _selectedDate;
+  late int _selectedPriority;
+  bool _isCompleted = false;
+  final _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.task.title);
-    _descriptionController =
-        TextEditingController(text: widget.task.description);
-    _deadline = widget.task.deadline;
-    _priority = widget.task.priority;
+    _titleController.text = widget.task.title;
+    _descriptionController.text = widget.task.description ?? '';
+    _selectedDate = widget.task.deadline;
+    _selectedPriority = widget.task.priority;
     _isCompleted = widget.task.isCompleted;
   }
 
@@ -75,7 +73,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                        'Fecha límite: ${_deadline.day}/${_deadline.month}/${_deadline.year}'),
+                        'Fecha límite: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
                   ),
                   IconButton(
                     onPressed: () {
@@ -87,25 +85,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               const SizedBox(height: 16.0),
               DropdownButtonFormField<int>(
-                value: _priority,
+                value: _selectedPriority,
                 decoration: const InputDecoration(labelText: 'Prioridad'),
                 items: [
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 0,
-                    child: Text('Baja'),
+                    child: const Text('Baja'),
                   ),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 1,
-                    child: Text('Media'),
+                    child: const Text('Media'),
                   ),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 2,
-                    child: Text('Alta'),
+                    child: const Text('Alta'),
                   ),
                 ],
                 onChanged: (value) {
                   setState(() {
-                    _priority = value!;
+                    _selectedPriority = value!;
                   });
                 },
               ),
@@ -124,7 +122,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     _updateTask();
-                    Navigator.pop(context);
                   }
                 },
                 child: const Text('Guardar'),
@@ -133,13 +130,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ElevatedButton(
                 onPressed: () {
                   _deleteTask();
-                  Navigator.pop(context);
                 },
                 child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                 ),
-                
               ),
             ],
           ),
@@ -151,41 +146,55 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _deadline,
+      initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
-    if (picked != null && picked != _deadline) {
+    if (picked != null && picked != _selectedDate) {
       setState(() {
-        _deadline = picked;
+        _selectedDate = picked;
       });
     }
   }
 
-  void _updateTask() {
-    final task = Task(
+  Future<void> _updateTask() async {
+    final updatedTask = Task(
       id: widget.task.id,
       title: _titleController.text,
       description: _descriptionController.text,
-      deadline: _deadline,
-      priority: _priority,
+      deadline: _selectedDate,
+      priority: _selectedPriority,
       isCompleted: _isCompleted,
     );
 
-    _firestore
-        .collection('users')
-        .doc(_auth.currentUser!.uid)
-        .collection('tasks')
-        .doc(task.id)
-        .update(task.toFirestore());
+    try {
+      await _apiService.updateTask(updatedTask);
+      // Navega a la pantalla de inicio o muestra un mensaje de éxito
+      Navigator.pushReplacementNamed(context, AppRouter.homeRoute);
+    } catch (e) {
+      // Manejar el error
+      print('Error al actualizar la tarea: ${e.toString()}');
+      _showErrorSnackBar('Error al actualizar la tarea');
+    }
   }
 
-  void _deleteTask() {
-    _firestore
-        .collection('users')
-        .doc(_auth.currentUser!.uid)
-        .collection('tasks')
-        .doc(widget.task.id)
-        .delete();
+  Future<void> _deleteTask() async {
+    try {
+      await _apiService.deleteTask(widget.task.id!);
+      // Navega a la pantalla de inicio o muestra un mensaje de éxito
+      Navigator.pushReplacementNamed(context, AppRouter.homeRoute);
+    } catch (e) {
+      // Manejar el error
+      print('Error al eliminar la tarea: ${e.toString()}');
+      _showErrorSnackBar('Error al eliminar la tarea');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 }

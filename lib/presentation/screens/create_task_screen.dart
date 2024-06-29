@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // Importa la biblioteca para formatear fechas
 import 'package:prueba_tecnica/models/task.dart';
+import 'package:prueba_tecnica/presentation/router/app_routes.dart';
+import 'package:prueba_tecnica/services/api_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   @override
@@ -9,23 +10,12 @@ class CreateTaskScreen extends StatefulWidget {
 }
 
 class _CreateTaskScreenState extends State<CreateTaskScreen> {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
-
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleController;
-  late TextEditingController _descriptionController;
-  late DateTime _deadline;
-  late int _priority;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _deadline = DateTime.now();
-    _priority = 1; // Media por defecto
-  }
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  int _selectedPriority = 1; // Media por defecto
+  final _apiService = ApiService();
 
   @override
   void dispose() {
@@ -60,13 +50,15 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Descripción (opcional)'),
+                decoration:
+                    const InputDecoration(labelText: 'Descripción (opcional)'),
               ),
               const SizedBox(height: 16.0),
               Row(
                 children: [
                   Expanded(
-                    child: Text('Fecha límite: ${_deadline.day}/${_deadline.month}/${_deadline.year}'),
+                    child: Text(
+                        'Fecha límite: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
                   ),
                   IconButton(
                     onPressed: () {
@@ -78,25 +70,25 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               ),
               const SizedBox(height: 16.0),
               DropdownButtonFormField<int>(
-                value: _priority,
+                value: _selectedPriority,
                 decoration: const InputDecoration(labelText: 'Prioridad'),
                 items: [
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 0,
-                    child: Text('Baja'),
+                    child: const Text('Baja'),
                   ),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 1,
-                    child: Text('Media'),
+                    child: const Text('Media'),
                   ),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 2,
-                    child: Text('Alta'),
+                    child: const Text('Alta'),
                   ),
                 ],
                 onChanged: (value) {
                   setState(() {
-                    _priority = value!;
+                    _selectedPriority = value!;
                   });
                 },
               ),
@@ -105,7 +97,6 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     _createTask();
-                    Navigator.pop(context);
                   }
                 },
                 child: const Text('Crear'),
@@ -120,32 +111,42 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _deadline,
+      initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
-    if (picked != null && picked != _deadline) {
+    if (picked != null && picked != _selectedDate) {
       setState(() {
-        _deadline = picked;
+        _selectedDate = picked;
       });
     }
   }
 
-  void _createTask() {
+  Future<void> _createTask() async {
     final task = Task(
-      id: _firestore.collection('users').doc(_auth.currentUser!.uid).collection('tasks').doc().id,
       title: _titleController.text,
       description: _descriptionController.text,
-      deadline: _deadline,
-      priority: _priority,
+      deadline: _selectedDate,
+      priority: _selectedPriority,
       isCompleted: false,
     );
 
-    _firestore
-        .collection('users')
-        .doc(_auth.currentUser!.uid)
-        .collection('tasks')
-        .doc(task.id)
-        .set(task.toFirestore());
+    try {
+      final createdTask = await _apiService.createTask(task);
+      // Navega a la pantalla de inicio o muestra un mensaje de éxito
+      // Por ejemplo, puedes usar Navigator.pop(context); para volver a la pantalla anterior
+      Navigator.pushReplacementNamed(context, AppRouter.homeRoute);
+    } catch (e) {
+      Navigator.pushReplacementNamed(context, AppRouter.homeRoute);
+      
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 }
