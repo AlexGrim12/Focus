@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prueba_tecnica/presentation/screens/auth_screen.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
+  final ValueNotifier<ThemeMode> themeModeNotifier;
+
+  const ProfileSettingsScreen({Key? key, required this.themeModeNotifier}) : super(key: key);
+
   @override
   _ProfileSettingsScreenState createState() => _ProfileSettingsScreenState();
 }
@@ -10,6 +14,11 @@ class ProfileSettingsScreen extends StatefulWidget {
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final _auth = FirebaseAuth.instance;
   late Brightness brightness;
+  final _formKey = GlobalKey<FormState>();
+  String _currentPassword = '';
+  String _newPassword = '';
+  String _confirmPassword = '';
+
   @override
   Widget build(BuildContext context) {
     brightness = Theme.of(context).brightness;
@@ -21,11 +30,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         child: Container(
           decoration: BoxDecoration(
             color: brightness == Brightness.light
-                      ? Colors.white
-                      : Theme.of(context).colorScheme.surfaceContainerLow,
-                  border: brightness == Brightness.light
-                      ? Border.all(color: Colors.black26)
-                      : Border.all(color: Colors.white30), 
+                ? Colors.white
+                : Theme.of(context).colorScheme.surfaceContainerLow,
+            border: brightness == Brightness.light
+                ? Border.all(color: Colors.black26)
+                : Border.all(color: Colors.white30),
             borderRadius: BorderRadius.circular(10.0),
           ),
           margin: const EdgeInsets.all(16.0),
@@ -76,7 +85,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ),
               ),
               ListTile(
-                title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+                title: const Text('Cerrar sesión',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () async {
                   await _auth.signOut();
                   Navigator.pushAndRemoveUntil(
@@ -101,23 +111,58 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Editar contraseña'),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(labelText: 'Contraseña actual'),
-                obscureText: true,
-              ),
-              TextField(
-                decoration: InputDecoration(labelText: 'Nueva contraseña'),
-                obscureText: true,
-              ),
-              TextField(
-                decoration:
-                    InputDecoration(labelText: 'Confirmar nueva contraseña'),
-                obscureText: true,
-              ),
-            ],
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  decoration:
+                      const InputDecoration(labelText: 'Contraseña actual'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingresa tu contraseña actual.';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    _currentPassword = value;
+                  },
+                ),
+                TextFormField(
+                  decoration:
+                      const InputDecoration(labelText: 'Nueva contraseña'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingresa una nueva contraseña.';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    _newPassword = value;
+                  },
+                ),
+                TextFormField(
+                  decoration: const InputDecoration(
+                      labelText: 'Confirmar nueva contraseña'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, confirma la nueva contraseña.';
+                    }
+                    if (value != _newPassword) {
+                      return 'Las contraseñas no coinciden.';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    _confirmPassword = value;
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -128,7 +173,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                // Implementa la lógica para cambiar la contraseña
+                if (_formKey.currentState!.validate()) {
+                  // Lógica para cambiar la contraseña usando Firebase Auth
+                  _changePassword();
+                }
                 Navigator.pop(context);
               },
               child: const Text('Guardar'),
@@ -137,6 +185,26 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _changePassword() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        await user.updatePassword(_newPassword);
+        // Mostrar un mensaje de éxito al usuario
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contraseña actualizada')),
+        );
+      } else {
+        // Manejar el caso en el que el usuario no está autenticado
+      }
+    } catch (e) {
+      // Manejar el error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   void _showThemeSettingsDialog() {
@@ -151,19 +219,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ListTile(
                 title: const Text('Claro'),
                 onTap: () {
-                  // Cambiar a tema claro
+                  widget.themeModeNotifier.value = ThemeMode.light;
+                  Navigator.pop(context);
                 },
               ),
               ListTile(
                 title: const Text('Oscuro'),
                 onTap: () {
-                  // Cambiar a tema oscuro
+                  widget.themeModeNotifier.value = ThemeMode.dark;
+                  Navigator.pop(context);
                 },
               ),
               ListTile(
                 title: const Text('Sistema'),
                 onTap: () {
-                  // Cambiar a tema del sistema
+                  widget.themeModeNotifier.value = ThemeMode.system;
+                  Navigator.pop(context);
                 },
               ),
             ],
@@ -181,3 +252,4 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 }
+

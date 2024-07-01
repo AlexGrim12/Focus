@@ -12,27 +12,39 @@ void main() async {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final ValueNotifier<ThemeMode> _themeModeNotifier = ValueNotifier(ThemeMode.system);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      title: 'Flutter Task App',
-      // Usa el router para la gestión de rutas
-      initialRoute: AppRouter.authRoute, 
-      onGenerateRoute: AppRouter.generateRoute,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return HomeScreen();
-          } else {
-            return AuthScreen();
-          }
-        },
-      ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: _themeModeNotifier,
+      builder: (context, themeMode, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          title: 'Flutter Task App',
+          initialRoute: AppRouter.authRoute,
+          onGenerateRoute: AppRouter.generateRoute,
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return HomeScreen(themeModeNotifier: _themeModeNotifier);
+              } else {
+                return AuthScreen();
+              }
+            },
+          ),
+        );
+      },
     );
   }
 }

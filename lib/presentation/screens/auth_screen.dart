@@ -80,10 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         return 'Por favor, confirma tu contraseña';
                       }
                       if (value != _password) {
-                        print(value);
-                        print(_password);
                         return 'Las contraseñas no coinciden';
-
                       }
                       return null;
                     },

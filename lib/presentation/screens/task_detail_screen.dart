@@ -6,7 +6,7 @@ import 'package:prueba_tecnica/models/task.dart';
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
 
-  TaskDetailScreen({required this.task});
+  TaskDetailScreen({super.key, required this.task});
 
   @override
   _TaskDetailScreenState createState() => _TaskDetailScreenState();
